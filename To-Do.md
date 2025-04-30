@@ -1,7 +1,7 @@
 # 1. Implementation
 a) PointPillar repo - https://github.com/zhulf0804/PointPillars
 
-b) SECOND repo - 
+b) SECOND repo - https://github.com/open-mmlab/OpenPCDet
 
 # 2. Report
 ## Abstract
