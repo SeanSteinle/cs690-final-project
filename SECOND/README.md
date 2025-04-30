@@ -20,6 +20,7 @@ python -m pip install torch torchvision torchaudio --index-url https://download.
 python -m pip install spconv-cu118
 python -m pip install kornia==0.5.8
 python -m pip install av2
+python -m pip install open3d
 ```
 
 ## Train
@@ -114,3 +115,16 @@ bbox AP:89.5914, 78.2676, 74.0232
 bev  AP:88.5071, 75.3610, 71.2955
 3d   AP:88.5071, 75.3610, 71.2955
 aos  AP:89.22, 77.66, 73.43
+
+## Test
+
+## Qualitative Assesment
+
+LiDAR visual
+
+```bash
+python demo.py --cfg_file cfgs/kitti_models/second.yaml --ckpt ../output/kitti_models/second/default/ckpt/checkpoint_epoch_80.pth --data_path ../data/kitti/testing/velodyne/000010.bin
+python demo.py --cfg_file cfgs/kitti_models/second.yaml --ckpt ../output/kitti_models/second/default/ckpt/checkpoint_epoch_80.pth --data_path ../data/kitti/testing/velodyne/000061.bin
+```
+
+What are the different bounding box colors?
