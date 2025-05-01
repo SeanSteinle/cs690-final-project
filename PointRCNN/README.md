@@ -1,6 +1,6 @@
-# SECOND
+# PointRCNN
 
-To train and test the SECOND model we are going to use the code from [OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
+To train and test the PointRCNN model we are going to use the code from [OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 
 ## Data Setup
 
@@ -42,99 +42,137 @@ python -m pip install open3d
 
 ## Train
 
-The following command will train the second model. I have included the config file below. This includes the parameters used when training the model. The training took 4 hours and 43 minutes on a 3080Ti GPU and i9-11900K @ 3.5GHz.
+The following command will train the second model. I have included the config file below. This includes the parameters used when training the model. The training took 7 hours and 46 minutes on a 3080Ti GPU and i9-11900K @ 3.5GHz. This model uses PointRCNN with an IoU-based loss function.
 
 ```bash
-python -W ignore::DeprecationWarning train.py --cfg_file cfgs/kitti_models/second.yaml
+python -W ignore::DeprecationWarning train.py --cfg_file cfgs/kitti_models/pointrcnn_iou.yaml
 ```
 
 ```yaml
-CLASS_NAMES: ["Car", "Pedestrian", "Cyclist"]
+CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
 
-MODEL:
-    NAME: SECONDNet
+    DATA_PROCESSOR:
+        -   NAME: mask_points_and_boxes_outside_range
+            REMOVE_OUTSIDE_BOXES: True
 
-    VFE:
-        NAME: MeanVFE
+        -   NAME: sample_points
+            NUM_POINTS: {
+                'train': 16384,
+                'test': 16384
+            }
+
+        -   NAME: shuffle_points
+            SHUFFLE_ENABLED: {
+                'train': True,
+                'test': False
+            }
+
+MODEL:
+    NAME: PointRCNN
 
     BACKBONE_3D:
-        NAME: VoxelBackBone8x
+        NAME: PointNet2MSG
+        SA_CONFIG:
+            NPOINTS: [4096, 1024, 256, 64]
+            RADIUS: [[0.1, 0.5], [0.5, 1.0], [1.0, 2.0], [2.0, 4.0]]
+            NSAMPLE: [[16, 32], [16, 32], [16, 32], [16, 32]]
+            MLPS: [[[16, 16, 32], [32, 32, 64]],
+                   [[64, 64, 128], [64, 96, 128]],
+                   [[128, 196, 256], [128, 196, 256]],
+                   [[256, 256, 512], [256, 384, 512]]]
+        FP_MLPS: [[128, 128], [256, 256], [512, 512], [512, 512]]
 
-    MAP_TO_BEV:
-        NAME: HeightCompression
-        NUM_BEV_FEATURES: 256
-
-    BACKBONE_2D:
-        NAME: BaseBEVBackbone
-
-        LAYER_NUMS: [5, 5]
-        LAYER_STRIDES: [1, 2]
-        NUM_FILTERS: [128, 256]
-        UPSAMPLE_STRIDES: [1, 2]
-        NUM_UPSAMPLE_FILTERS: [256, 256]
-
-    DENSE_HEAD:
-        NAME: AnchorHeadSingle
+    POINT_HEAD:
+        NAME: PointHeadBox
+        CLS_FC: [256, 256]
+        REG_FC: [256, 256]
         CLASS_AGNOSTIC: False
-
-        USE_DIRECTION_CLASSIFIER: True
-        DIR_OFFSET: 0.78539
-        DIR_LIMIT_OFFSET: 0.0
-        NUM_DIR_BINS: 2
-
-        ANCHOR_GENERATOR_CONFIG:
-            [
-                {
-                    "class_name": "Car",
-                    "anchor_sizes": [[3.9, 1.6, 1.56]],
-                    "anchor_rotations": [0, 1.57],
-                    "anchor_bottom_heights": [-1.78],
-                    "align_center": False,
-                    "feature_map_stride": 8,
-                    "matched_threshold": 0.6,
-                    "unmatched_threshold": 0.45,
-                },
-                {
-                    "class_name": "Pedestrian",
-                    "anchor_sizes": [[0.8, 0.6, 1.73]],
-                    "anchor_rotations": [0, 1.57],
-                    "anchor_bottom_heights": [-0.6],
-                    "align_center": False,
-                    "feature_map_stride": 8,
-                    "matched_threshold": 0.5,
-                    "unmatched_threshold": 0.35,
-                },
-                {
-                    "class_name": "Cyclist",
-                    "anchor_sizes": [[1.76, 0.6, 1.73]],
-                    "anchor_rotations": [0, 1.57],
-                    "anchor_bottom_heights": [-0.6],
-                    "align_center": False,
-                    "feature_map_stride": 8,
-                    "matched_threshold": 0.5,
-                    "unmatched_threshold": 0.35,
-                },
-            ]
-
-        TARGET_ASSIGNER_CONFIG:
-            NAME: AxisAlignedTargetAssigner
-            POS_FRACTION: -1.0
-            SAMPLE_SIZE: 512
-            NORM_BY_NUM_EXAMPLES: False
-            MATCH_HEIGHT: False
-            BOX_CODER: ResidualCoder
+        USE_POINT_FEATURES_BEFORE_FUSION: False
+        TARGET_CONFIG:
+            GT_EXTRA_WIDTH: [0.2, 0.2, 0.2]
+            BOX_CODER: PointResidualCoder
+            BOX_CODER_CONFIG: {
+                'use_mean_size': True,
+                'mean_size': [
+                    [3.9, 1.6, 1.56],
+                    [0.8, 0.6, 1.73],
+                    [1.76, 0.6, 1.73]
+                ]
+            }
 
         LOSS_CONFIG:
-            LOSS_WEIGHTS:
-                {
-                    "cls_weight": 1.0,
-                    "loc_weight": 2.0,
-                    "dir_weight": 0.2,
-                    "code_weights": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-                }
+            LOSS_REG: WeightedSmoothL1Loss
+            LOSS_WEIGHTS: {
+                'point_cls_weight': 1.0,
+                'point_box_weight': 1.0,
+                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+            }
+
+    ROI_HEAD:
+        NAME: PointRCNNHead
+        CLASS_AGNOSTIC: True
+
+        ROI_POINT_POOL:
+            POOL_EXTRA_WIDTH: [0.0, 0.0, 0.0]
+            NUM_SAMPLED_POINTS: 512
+            DEPTH_NORMALIZER: 70.0
+
+        XYZ_UP_LAYER: [128, 128]
+        CLS_FC: [256, 256]
+        REG_FC: [256, 256]
+        DP_RATIO: 0.0
+        USE_BN: False
+
+        SA_CONFIG:
+            NPOINTS: [128, 32, -1]
+            RADIUS: [0.2, 0.4, 100]
+            NSAMPLE: [16, 16, 16]
+            MLPS: [[128, 128, 128],
+                   [128, 128, 256],
+                   [256, 256, 512]]
+
+        NMS_CONFIG:
+            TRAIN:
+                NMS_TYPE: nms_gpu
+                MULTI_CLASSES_NMS: False
+                NMS_PRE_MAXSIZE: 9000
+                NMS_POST_MAXSIZE: 512
+                NMS_THRESH: 0.8
+            TEST:
+                NMS_TYPE: nms_gpu
+                MULTI_CLASSES_NMS: False
+                NMS_PRE_MAXSIZE: 9000
+                NMS_POST_MAXSIZE: 100
+                NMS_THRESH: 0.85
+
+        TARGET_CONFIG:
+            BOX_CODER: ResidualCoder
+            ROI_PER_IMAGE: 128
+            FG_RATIO: 0.5
+
+            SAMPLE_ROI_BY_EACH_CLASS: True
+            CLS_SCORE_TYPE: roi_iou
+
+            CLS_FG_THRESH: 0.7
+            CLS_BG_THRESH: 0.25
+            CLS_BG_THRESH_LO: 0.1
+            HARD_BG_RATIO: 0.8
+
+            REG_FG_THRESH: 0.55
+
+        LOSS_CONFIG:
+            CLS_LOSS: BinaryCrossEntropy
+            REG_LOSS: smooth-l1
+            CORNER_LOSS_REGULARIZATION: True
+            LOSS_WEIGHTS: {
+                'rcnn_cls_weight': 1.0,
+                'rcnn_reg_weight': 1.0,
+                'rcnn_corner_weight': 1.0,
+                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+            }
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
@@ -146,16 +184,17 @@ MODEL:
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False
             NMS_TYPE: nms_gpu
-            NMS_THRESH: 0.01
+            NMS_THRESH: 0.1
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
 
+
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 4
+    BATCH_SIZE_PER_GPU: 3
     NUM_EPOCHS: 80
 
     OPTIMIZER: adam_onecycle
-    LR: 0.003
+    LR: 0.01
     WEIGHT_DECAY: 0.01
     MOMENTUM: 0.9
 
@@ -180,8 +219,8 @@ OPTIMIZATION:
 The `demo.py` file was modified to include an image with bounding boxes as well. The added code is below.
 
 ```bash
-python demo.py --cfg_file cfgs/kitti_models/second.yaml --ckpt ../output/kitti_models/second/default/ckpt/checkpoint_epoch_80.pth --data_path ../data/kitti/testing/velodyne/000010.bin
-python demo.py --cfg_file cfgs/kitti_models/second.yaml --ckpt ../output/kitti_models/second/default/ckpt/checkpoint_epoch_80.pth --data_path ../data/kitti/testing/velodyne/000061.bin
+python demo.py --cfg_file cfgs/kitti_models/pointrcnn_iou.yaml --ckpt ../output/kitti_models/pointrcnn_iou/default/ckpt/checkpoint_epoch_80.pth --data_path ../data/kitti/testing/velodyne/000010.bin
+python demo.py --cfg_file cfgs/kitti_models/pointrcnn_iou.yaml --ckpt ../output/kitti_models/pointrcnn_iou/default/ckpt/checkpoint_epoch_80.pth --data_path ../data/kitti/testing/velodyne/000061.bin
 ```
 
 ```python
@@ -280,77 +319,77 @@ cv2.imwrite(f"./000010.png", image)
 The evaluation on the test set is run after training. Here are the raw results:
 
 ```
-2025-04-29 20:50:15,169
+2025-05-01 05:35:27,222
 
 Car AP@0.70, 0.70, 0.70:
-bbox AP:90.8121, 89.9794, 89.1778
-bev  AP:89.8830, 87.8279, 86.4654
-3d   AP:88.5152, 78.6068, 77.3290
-aos  AP:90.80, 89.90, 89.01
+bbox AP:90.5257, 89.2349, 88.9356
+bev  AP:89.8123, 87.1214, 85.8392
+3d   AP:88.3870, 78.1954, 77.7231
+aos  AP:90.52, 89.13, 88.78
 
 Car AP_R40@0.70, 0.70, 0.70:
-bbox AP:95.6312, 94.1471, 91.7841
-bev  AP:92.1598, 89.3997, 87.5052
-3d   AP:89.9717, 81.6250, 78.6227
-aos  AP:95.62, 94.04, 91.59
+bbox AP:95.9820, 92.2827, 90.0942
+bev  AP:92.7414, 88.5143, 86.5560
+3d   AP:90.5946, 80.0310, 77.8711
+aos  AP:95.97, 92.17, 89.94
 
 Car AP@0.70, 0.50, 0.50:
-bbox AP:90.8121, 89.9794, 89.1778
-bev  AP:90.8258, 90.1000, 89.5272
-3d   AP:90.8258, 90.0684, 89.4097
-aos  AP:90.80, 89.90, 89.01
+bbox AP:90.5257, 89.2349, 88.9356
+bev  AP:90.4606, 89.4314, 89.2555
+3d   AP:90.4573, 89.4017, 89.1987
+aos  AP:90.52, 89.13, 88.78
 
 Car AP_R40@0.70, 0.50, 0.50:
-bbox AP:95.6312, 94.1471, 91.7841
-bev  AP:95.6666, 94.7488, 94.1398
-3d   AP:95.6555, 94.6360, 93.8485
-aos  AP:95.62, 94.04, 91.59
+bbox AP:95.9820, 92.2827, 90.0942
+bev  AP:95.9540, 94.5215, 92.4687
+3d   AP:95.9384, 94.3293, 92.3538
+aos  AP:95.97, 92.17, 89.94
 
 Pedestrian AP@0.50, 0.50, 0.50:
-bbox AP:69.2113, 66.1247, 63.4274
-bev  AP:63.1115, 56.7746, 53.8335
-3d   AP:58.6777, 53.9046, 49.7502
-aos  AP:65.40, 61.91, 58.93
+bbox AP:73.5444, 65.8273, 62.2745
+bev  AP:67.5066, 60.2687, 54.0909
+3d   AP:61.8402, 57.0153, 51.1470
+aos  AP:71.29, 63.17, 59.48
 
 Pedestrian AP_R40@0.50, 0.50, 0.50:
-bbox AP:70.3869, 66.7333, 63.1553
-bev  AP:62.7921, 56.4844, 52.2657
-3d   AP:58.6046, 52.5645, 48.1265
-aos  AP:65.99, 61.98, 58.09
+bbox AP:74.6165, 67.4874, 62.0952
+bev  AP:66.6666, 59.3514, 52.8303
+3d   AP:63.2602, 55.9949, 49.4335
+aos  AP:72.02, 64.34, 58.92
 
 Pedestrian AP@0.50, 0.25, 0.25:
-bbox AP:69.2113, 66.1247, 63.4274
-bev  AP:75.9657, 73.2218, 69.7225
-3d   AP:75.6941, 72.9519, 69.3746
-aos  AP:65.40, 61.91, 58.93
+bbox AP:73.5444, 65.8273, 62.2745
+bev  AP:80.5148, 73.8899, 66.3975
+3d   AP:80.4604, 73.8003, 66.2768
+aos  AP:71.29, 63.17, 59.48
 
 Pedestrian AP_R40@0.50, 0.25, 0.25:
-bbox AP:70.3869, 66.7333, 63.1553
-bev  AP:77.0275, 74.0073, 70.4700
-3d   AP:76.7021, 73.6685, 70.1581
-aos  AP:65.99, 61.98, 58.09
+bbox AP:74.6165, 67.4874, 62.0952
+bev  AP:81.2173, 74.9651, 68.0123
+3d   AP:81.1624, 74.8505, 67.8606
+aos  AP:72.02, 64.34, 58.92
 
 Cyclist AP@0.50, 0.50, 0.50:
-bbox AP:86.6637, 76.5282, 72.6720
-bev  AP:83.9493, 69.9241, 66.3441
-3d   AP:80.7166, 66.5600, 62.2242
-aos  AP:86.33, 75.98, 72.12
+bbox AP:89.7502, 77.6679, 75.2861
+bev  AP:88.3649, 74.4365, 71.0086
+3d   AP:87.7197, 72.5666, 69.9434
+aos  AP:89.67, 77.20, 74.70
 
 Cyclist AP_R40@0.50, 0.50, 0.50:
-bbox AP:89.5914, 78.2676, 74.0232
-bev  AP:86.5923, 70.9884, 66.6470
-3d   AP:82.0026, 66.9198, 62.8797
-aos  AP:89.22, 77.66, 73.43
+bbox AP:94.5122, 80.3424, 76.1598
+bev  AP:92.7105, 75.6850, 71.2260
+3d   AP:90.9061, 72.9923, 69.5031
+aos  AP:94.41, 79.76, 75.58
 
 Cyclist AP@0.50, 0.25, 0.25:
-bbox AP:86.6637, 76.5282, 72.6720
-bev  AP:85.6653, 74.0072, 70.0826
-3d   AP:85.6653, 74.0072, 70.0826
-aos  AP:86.33, 75.98, 72.12
+bbox AP:89.7502, 77.6679, 75.2861
+bev  AP:89.1978, 75.8530, 72.6934
+3d   AP:89.1978, 75.8530, 72.6934
+aos  AP:89.67, 77.20, 74.70
 
 Cyclist AP_R40@0.50, 0.25, 0.25:
-bbox AP:89.5914, 78.2676, 74.0232
-bev  AP:88.5071, 75.3610, 71.2955
-3d   AP:88.5071, 75.3610, 71.2955
-aos  AP:89.22, 77.66, 73.43
+bbox AP:94.5122, 80.3424, 76.1598
+bev  AP:93.7917, 78.0207, 73.5824
+3d   AP:93.7917, 78.0207, 73.5824
+aos  AP:94.41, 79.76, 75.58
 ```
