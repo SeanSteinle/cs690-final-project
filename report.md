@@ -14,6 +14,8 @@ Over the years, numerous frameworks have emerged that make 3D object detection i
 
 ## Technical Approach 
 
+We began our review by examining and attempting to implement 9 different 3D object detection models, before narrowing our focus to PointRCNN, SECOND, and PointPillar. We trained these models on two machines. Both machines utilized a 3080 RTX GPU, one using Linux and the other using Windows. PointRCNN took about 4 hours to train, SECOND took about 3 hours, and PointPillar took at 7 hours.
+
 We compare the three models across a number of dimensions. First, we consider the models' performance across easy, moderate, and hard samples. The harder samples tend to be lower visibility, with challenges like weather, occlusion, further distance, and so on. Second, we consider the models' performance across different levels of specificity. The levels of specificity are as follows, in order of increasing difficulty to maximize:
 
 1. *2D BBox AP* - 2D bounding‐box AP in image space.
@@ -23,20 +25,31 @@ We compare the three models across a number of dimensions. First, we consider th
 
 Finally, we compare model performance across three classes of objects--pedestrians, cyclists, and cars. For all of these comparisons, we specify the threshold of the intersection over union (IoU) metric which is determines whether an object is detected or not.
 
+![image](PointRCNN/10_PointRCNN_3D_detection.png)
+PointRCNN's 3D rendering of KITTI scene #10.
+
+![image](SECOND/10_SECOND_3D_detection.png)
+SECOND's 3D rendering of KITTI scene #10.
+
+![image](PointPillar/10_pointpillar_3D_detection.png)
+PointPillar's 3D rendering of KITTI scene #10.
+
 ![image](PointRCNN/10_PointRCNN_pcd_vis.png)
 PointRCNN's bird's eye view (BEV) rendering of KITTI scene #10.
 
 ![image](SECOND/10_SECOND_pcd_vis.png)
 SECOND's bird's eye view (BEV) rendering of KITTI scene #10.
 
-![image](PointPillar/10_PointPillar_pcd_vis.png)
+![image](PointPillar/10_pointpillar_pcd_vis.png)
 PointPillar's bird's eye view (BEV) rendering of KITTI scene #10.
 
 ## Results and Discussion 
 
 In this section we compare the performance of all three models by the specificity of the scene, difficulty of detection, and object of detection. The best model for each specificity-difficulty pair is bolded.``
 
-### Pedestrians
+### Quantitative Analysis
+
+#### Pedestrians
 *IoU Threshold = 0.5*
 
 **PointRCNN**
@@ -68,7 +81,7 @@ In this section we compare the performance of all three models by the specificit
 
 When it comes to performance on pedestrians, PointRCNN performed the best across 10 of 12 specificity-difficulty pairs. The two pairs in which is was not the best was the IoU on 2D bounding boxes for medium and hard samples--in these cases, the SECOND model performed better. This highlights a key trend in these datapoints--while PointRCNN generally performs best, the SECOND model is more robust to difficult samples in that its performance degrades less. Additionally, we see consistent degradation from all models as we increase the specificity of the scene (from 2D -> AOS -> BEV -> 3D). This suggests that handling the added localization, height, and orientation considerations degrade performance.
 
-### Cyclists
+#### Cyclists
 *IoU Threshold = 0.5*
 
 **PointRCNN**
@@ -100,7 +113,7 @@ When it comes to performance on pedestrians, PointRCNN performed the best across
 
 For detecting cyclists, PointRCNN dominates SECOND and PointPillar. It has the best performance in all 12 performance-difficulty pairs, often by a decent margin. It's interesting to note that all three models have fairly degraded performance on moderate and hard difficulty samples--this suggests that detecting cyclists can be represent a challenging edge case in low-visibility scenarios. Generally, detecting cyclists is harder than detecting pedestrians. Finally, AOS tracks AP closely, showing that once cyclists are detected, orientation is estimated reasonably well in easy cases.
 
-### Cars
+#### Cars
 *IoU Threshold = 0.7*
 
 **PointRCNN**
@@ -119,7 +132,7 @@ For detecting cyclists, PointRCNN dominates SECOND and PointPillar. It has the b
 | 2D BBox AP | **90.81%** | **89.98%** | 89.18% |
 | AOS | **90.80%** | **89.90%** | **89.01%** |
 | BEV AP | 89.88% | 87.83% | **86.47%** |
-| 3D AP	| **88.52%8* | **78.61%** | 77.33% |
+| 3D AP	| **88.52%** | **78.61%** | 77.33% |
 
 **PointPillar**
 
@@ -132,7 +145,7 @@ For detecting cyclists, PointRCNN dominates SECOND and PointPillar. It has the b
 
 Unlike the case of pedestrian and cyclist data where one model was dominant, all models perform nearly equally for car classification, with only 1-2% difference for all specificity-difficulty pairs. This may be occurring because detecting cars is much easier than detecting pedestrian or cyclists, especially for harder samples. The most difficult challenge in car detection appears to be rendering with more specificity in low visibility, as there is a large dropoff in all models when comparing 3D and 2D specificities for moderate and hard samples.
 
-### All Categories
+#### All Categories
 *Average Results for Pedestrians, Cyclists, and Cars*
 
 **PointRCNN**
@@ -163,6 +176,48 @@ Unlike the case of pedestrian and cyclist data where one model was dominant, all
 | 3D AP	| 73.25% | 62.79% | 59.62% |
 
 When considering overall performance, PointRCNN is the best model across all 12 specificity-difficulty pairs. This follows logically since it was the best pedestrian and cyclist detection model, and tied with the other models for car detection. SECOND ironically performs almost as well, and PointPillar is a clearly inferior model--especially for pedestrian and cyclist detection.
+
+### Qualitative Analysis
+
+![image](PointRCNN/10_PointRCNN_3D_detection.png)
+PointRCNN's 3D rendering of KITTI scene #10.
+
+![image](SECOND/10_SECOND_3D_detection.png)
+SECOND's 3D rendering of KITTI scene #10.
+
+![image](PointPillar/10_pointpillar_3D_detection.png)
+PointPillar's 3D rendering of KITTI scene #10.
+
+![image](PointRCNN/10_PointRCNN_pcd_vis.png)
+PointRCNN's bird's eye view (BEV) rendering of KITTI scene #10.
+
+![image](SECOND/10_SECOND_pcd_vis.png)
+SECOND's bird's eye view (BEV) rendering of KITTI scene #10.
+
+![image](PointPillar/10_pointpillar_pcd_vis.png)
+PointPillar's bird's eye view (BEV) rendering of KITTI scene #10.
+
+This example captures why PointRCNN is the best model--it captures only the cars in its immediate vicinity, with no false positives. On the other hand, SECOND drastically overpredicts, detecting about 3x as many objects as there actually are. PointPillar also produces false positives, though not nearly as many.
+
+![image](PointRCNN/61_PointRCNN_3D_detection.png)
+PointRCNN's 3D rendering of KITTI scene #61.
+
+![image](SECOND/61_SECOND_3D_detection.png)
+SECOND's 3D rendering of KITTI scene #61.
+
+![image](PointPillar/61_pointpillar_3D_detection.png)
+PointPillar's 3D rendering of KITTI scene #61.
+
+![image](PointRCNN/61_PointRCNN_pcd_vis.png)
+PointRCNN's bird's eye view (BEV) rendering of KITTI scene #61.
+
+![image](SECOND/61_SECOND_pcd_vis.png)
+SECOND's bird's eye view (BEV) rendering of KITTI scene #61.
+
+![image](PointPillar/61_pointpillar_pcd_vis.png)
+PointPillar's bird's eye view (BEV) rendering of KITTI scene #61.
+
+This example shows some of the challenges of real-world object detection. Most notably, there are many obstructions which make camera-based sensors less effective. All three models tend to have a general grasp of the configuration of cars, but PointRCNN and SECOND seem to do a better job at getting the correct number of cars than PointPillar.
 
 ## Conclusion
 
