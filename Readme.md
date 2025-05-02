@@ -15,7 +15,20 @@ Over the years, numerous frameworks have emerged that make 3D object detection i
 
 ## Technical Approach ❌
 In 
+
 ## Results and Discussion ❌
+### Peformance metrics
+| Metric             | Definition                                                                                  |
+| ------------------ | ------------------------------------------------------------------------------------------- |
+| **AP\@X,Y,Z**      | Average Precision at IoU thresholds X (2D bbox), Y (BEV), Z (3D). Higher = better.          |
+| **AP\_R40\@X,Y,Z** | The same, but computed with the “40‑point” recall setting (more stable for sparse objects). |
+| **AOS\@X**         | Average Orientation Similarity at IoU = X: combines detection correctness + yaw accuracy.   |
+| **“bbox” AP**      | 2D bounding‑box detection in image plane.                                                   |
+| **“bev” AP**       | Bird’s‑Eye‑View (top‑down) 2D detection.                                                    |
+| **“3d” AP**        | Full 3D bounding‑box detection (x,y,z + size + orientation).                                |
+| **Difficulty**     | KITTI Easy / Moderate / Hard splits (increasing occlusion, truncation, distance).           |
+
+
 
 ## Conclusions ❌
 
