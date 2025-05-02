@@ -30,6 +30,19 @@ In
 
 
 
+Thresholds by class:
+
+Cars use AP@0.70,0.70,0.70 (strict localization).
+Pedestrians/Cyclists use AP@0.50,0.50,0.50 (and also looser AP@0.50,0.25,0.25).
+We also report AP_R40 (40 recall positions) which reduces noise for small or sparse objects.
+
+### Result analysis
+We compare three models:
+
+1. SECOND
+2. PointRCNN
+3. PointPillars
+
 ## Conclusions ❌
 
 ## References ❌
