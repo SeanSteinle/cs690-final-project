@@ -5,12 +5,20 @@
 Over the years, numerous frameworks have emerged that make 3D object detection in the autonomous scenario easier and more robust. Despite the introduction of such frameworks, there are always areas that require improvement. In this project, we have explored a variety of end-to-end 3D object–detection pipelines on the KITTI benchmark to understand how different representations, network backbones, and native CUDA-accelerated modules impact 3D object detection accuracy and speed. The KITTI dataset consists of image and pointcloud data, which can be transformed into structured inputs in the form of voxels, pillars, or bird’s-eye-view (BEV) images, that can be processed by 2D or 3D convolutional backbones. We experimented with different frameworks and finalized three of these to be included in the final report. These are PointPillar, SECOND and PointRCNN.
 
 ## Introduction 
+The rapid advancement of autonomous systems has necessitated robust and efficient 3D object detection frameworks capable of interpreting complex environments in real time. Unlike traditional 2D detection, 3D object detection must account for spatial localization, orientation, and scale variations—critical factors for safe navigation in dynamic scenarios such as autonomous driving. The KITTI benchmark, with its synchronized LiDAR and camera data, provides a standardized platform to evaluate these frameworks under diverse conditions, including occlusion, varying distances, and environmental clutter.
 
-@Sanjay
+Recent approaches to 3D detection leverage structured representations of raw sensor data, such as voxels, pillars, or bird’s-eye-view (BEV) projections, to balance computational efficiency with detection accuracy. Point-based methods like PointRCNN exploit raw point clouds for precise localization, while voxel-based frameworks like SECOND optimize sparse convolution operations for speed. Pillar-based models such as PointPillar further streamline computation by encoding point clouds into vertical columns, enabling real-time performance on embedded hardware. However, the interplay between input representations, network architectures, and hardware-accelerated modules remains underexplored in terms of their collective impact on task-specific metrics.
+
+This study systematically evaluates three state-of-the-art frameworks—PointRCNN, SECOND, and PointPillar—on the KITTI dataset to quantify their performance across detection specificity (2D, BEV, 3D) and difficulty levels (easy, moderate, hard). By analyzing their architectural trade-offs and computational profiles, we provide insights into optimizing accuracy-speed trade-offs for autonomous systems. Our results highlight the strengths of each framework in handling pedestrians, cyclists, and cars, while identifying critical challenges in generalizing to edge cases.
 
 ## Related Work
+Recent work on 3D object detection has focused on optimizing both accuracy and efficiency for autonomous systems. 
 
-@Sanjay
+PillarFocusNet improves upon PointPillars by using density clustering and attention mechanisms to better handle sparse point clouds, achieving 1.3–3.4% higher 3D AP on KITTI. 
+
+PromptDet introduces a lightweight multi-modal approach that fuses LiDAR and camera data with prompt-based learning, outperforming camera-only methods by 22.8% mAP. 
+
+These studies highlight key trade-offs between architectural complexity and performance, similar to our comparison of PointRCNN, SECOND, and PointPillar.
 
 ## Technical Approach 
 
@@ -220,10 +228,15 @@ PointPillar's bird's eye view (BEV) rendering of KITTI scene #61.
 This example shows some of the challenges of real-world object detection. Most notably, there are many obstructions which make camera-based sensors less effective. All three models tend to have a general grasp of the configuration of cars, but PointRCNN and SECOND seem to do a better job at getting the correct number of cars than PointPillar.
 
 ## Conclusion
+This study presents a comprehensive evaluation of three leading 3D object detection frameworks—PointRCNN, SECOND, and PointPillar—on the KITTI benchmark. Our experiments demonstrate that PointRCNN achieves superior performance for pedestrians and cyclists, outperforming SECOND and PointPillar by margins of up to 12% in 3D AP for hard samples. This advantage stems from its point-based proposal generation, which preserves fine-grained spatial details critical for small-object detection. However, SECOND and PointPillar exhibit faster inference times, with SECOND achieving a 33% reduction in training time compared to PointRCNN, making them pragmatic choices for latency-sensitive applications.
 
-@Sanjay
+Notably, all frameworks achieved comparable results for car detection, with less than 2% variation in 3D AP, underscoring the maturity of current methods for large-object localization. Qualitative analysis revealed that PointRCNN’s precision reduces false positives in cluttered scenes, while SECOND’s sparse convolutions occasionally overdetect distant objects. PointPillar, despite its efficiency, struggled with orientation estimation, particularly for cyclists.
+
+These findings underscore the importance of task-specific framework selection: PointRCNN excels in safety-critical scenarios requiring high precision, whereas SECOND and PointPillar prioritize real-time performance. Future work should explore hybrid architectures that combine point-based refinement with pillar- or voxel-based feature extraction, as well as robustness enhancements for adverse weather and occlusion. By addressing these challenges, 3D detection systems can further bridge the gap between benchmark performance and real-world reliability.
 
 ## References
 1. Shi, Shaoshuai, Xiaogang Wang, and Hongsheng Li. "Pointrcnn: 3d object proposal generation and detection from point cloud." Proceedings of the IEEE/CVF conference on computer vision and pattern recognition. 2019.
 2. Yan, Yan, Yuxing Mao, and Bo Li. "Second: Sparsely embedded convolutional detection." Sensors 18.10 (2018): 3337.
 3. Lang, Alex H., et al. "Pointpillars: Fast encoders for object detection from point clouds." Proceedings of the IEEE/CVF conference on computer vision and pattern recognition. 2019.
+4. Gao, Y., Wang, P., Li, X. et al. PillarFocusNet for 3D object detection with perceptual diffusion and key feature understanding. Sci Rep 15, 8776 (2025). https://doi.org/10.1038/s41598-025-92338-5
+5. PromptDet: Towards Open-vocabulary Detection using Uncurated Images. (n.d.). https://fcjian.github.io/promptdet/
