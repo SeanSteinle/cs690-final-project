@@ -12,13 +12,12 @@ Recent approaches to 3D detection leverage structured representations of raw sen
 This study systematically evaluates three state-of-the-art frameworks—PointRCNN, SECOND, and PointPillar—on the KITTI dataset to quantify their performance across detection specificity (2D, BEV, 3D) and difficulty levels (easy, moderate, hard). By analyzing their architectural trade-offs and computational profiles, we provide insights into optimizing accuracy-speed trade-offs for autonomous systems. Our results highlight the strengths of each framework in handling pedestrians, cyclists, and cars, while identifying critical challenges in generalizing to edge cases.
 
 ## Related Work
-Recent work on 3D object detection has focused on optimizing both accuracy and efficiency for autonomous systems. 
+PointRCNN [1] works directly on the unstructured point cloud.  It first learns per‑point features and segments out likely object points, then groups those into coarse 3D proposals and refines each with a small PointNet to produce final oriented 3D boxes.  Because it never voxelizes or projects away data, it achieves the strongest 3D localization accuracy—especially on challenging, partially‑occluded cars—but at the cost of relatively heavy computation on every LiDAR point. Whereas, SECOND [2] sits in the middle of the spectrum.  It divides space into a sparse 3D grid of voxels, encodes each non‑empty voxel via a tiny PointNet, and then runs sparse 3D convolutions only where there are points.  This “scan the non‑empty space” strategy recovers most of the geometric detail while accelerating inference by skipping empty voxels.  The result is near state‑of‑the‑art 3D AP on KITTI at real‑time speeds (∼15–20 FPS), but with some loss of fine detail relative to PointRCNN.
 
-PillarFocusNet improves upon PointPillars by using density clustering and attention mechanisms to better handle sparse point clouds, achieving 1.3–3.4% higher 3D AP on KITTI. 
+PointPillars [3] pushes efficiency to the extreme by collapsing the vertical axis entirely.  It aggregates points into vertical “pillars,” encodes each via a lightweight PointNet, then scatters those features into a dense 2D pseudo‑image and applies a standard 2D CNN detector in bird’s‑eye view.  By converting the entire heavy convolutional backbone to 2D, PointPillars runs at >30 FPS while still delivering very strong detection accuracy—only slightly below SECOND—though it can lose some vertical precision because height is encoded only indirectly. Gao and colleagues introduce PillarFocusNet [4], a novel pillar‑based 3D object detector that addresses the inherent sparsity and information loss of voxel‑ or pillar‑level encodings. They propose a Perceptual Diffusion Module that adaptively propagates salient contextual cues across neighboring pillars via an error‑diffusion strategy, mitigating the “hole” effect in undersampled regions. Complementing this, their Key Feature Understanding (KFU) Module explicitly re‑weights and refines critical object-centric features, especially beneficial for small or occluded targets. Integrated into a two‑stage detection pipeline, PillarFocusNet achieves new state‑of‑the‑art performance on both KITTI and nuScenes benchmarks, notably improving accuracy on cyclists and pedestrians without sacrificing inference speed. PillarFocusNet improves upon PointPillars by using density clustering and attention mechanisms to better handle sparse point clouds, achieving 1.3–3.4% higher 3D AP on KITTI. 
 
-PromptDet introduces a lightweight multi-modal approach that fuses LiDAR and camera data with prompt-based learning, outperforming camera-only methods by 22.8% mAP. 
+PV‑RCNN [5] pioneers a hybrid point‑voxel architecture for 3D detection. It first employs a Voxel Feature Encoder to learn dense, grid‑structured features and generate coarse 3D proposals. Then, within each proposal’s local neighborhood, a Point‑Voxel Set Abstraction module extracts fine-grained point‑level features and fuses them back into the global representation. This two‑stage fusion yields highly accurate localization and orientation estimates, setting new benchmarks on KITTI’s car, pedestrian, and cyclist tasks 
 
-These studies highlight key trade-offs between architectural complexity and performance, similar to our comparison of PointRCNN, SECOND, and PointPillar.
 
 ## Technical Approach 
 
@@ -53,7 +52,28 @@ PointPillar's bird's eye view (BEV) rendering of KITTI scene #10.
 
 ## Results and Discussion 
 
-In this section we compare the performance of all three models by the specificity of the scene, difficulty of detection, and object of detection. The best model for each specificity-difficulty pair is bolded.``
+In this section, we compare the performance of all three models by the specificity of the scene, difficulty of detection, and object of detection. The best model for each specificity-difficulty pair is bolded.``
+
+Joseph and Shahriar worked on training the models and extracting outputs, whereas Sean and Sanjay worked on compiling the report. All the members contributed equally to making the slides. 
+
+Thought for a couple of seconds
+
+
+Thought for a couple of seconds
+
+
+**Joseph Sepich**
+Because I led both the SECOND and PointRCNN implementations, I saw firsthand how their architectures behave under the same training regime. With SECOND, I was able to optimize its sparse‑convolution pipeline—tweaking voxel size and learning‑rate schedule—to get very fast convergence and strong car detection, especially on moderate and hard samples. Switching to PointRCNN, I dived into its point‑wise proposal network, which paid off in top‑tier pedestrian and cyclist AP; I fine‑tuned its segmentation thresholds and added extra augmentation to preserve small‑object detail. In both cases, I’m proud of hitting our accuracy targets without blowing out training time. In hindsight, I’d invest more effort in advanced data augmentations—simulating rain or motion blur—and perhaps fuse SECOND’s voxel features into PointRCNN’s refinement stage to boost robustness on distant, occluded targets.
+
+**Shahriar Hossain**
+I owned the PointPillar implementation and deployment. But before that I experimented with at least half a dozen models, but most of that has issues being implemented in my windows system due to cuda mismatch issues and many of these open-source models had outdated TensorFlow  versions. By carefully selecting the pillar grid resolution and encoder width, I achieved sub‑100 ms inference on our RTX 3080 GPU—meeting real‑time requirements for embedded AV systems. I also streamlined the input pipeline to minimize preprocessing overhead, which was key to our speed metric for the PointPillar model. What we didn’t get to, though, was a deeper exploration of multi‑scale pillars or adding an attention module to recover fine-grained spatial cues lost in the vertical column encoding. Given more time, I’d prototype a dual‑pillar scheme—dense pillars for near range, sparse for far—to boost cyclist and pedestrian performance without sacrificing throughput.
+
+**Sanjay Mohan**
+My work centered on unifying the training and evaluation framework across all three models. I built the logging, visualization, and automated comparison scripts that let us compare 2D, BEV, and 3D AP side‑by‑side, and generate the BEV renderings that illuminated each model’s failure modes. I’m pleased we delivered clear qualitative insights—like how PointRCNN avoids false positives in cluttered scenes. If we had more expertise and time, I’d integrate explainability tools (e.g. Grad‑CAM for LiDAR) to pinpoint exactly which points drive each detection, and cluster common error patterns for targeted model refinement.
+
+**Sean Steinle**
+I focused on the project’s end‑to‑end infrastructure—setting up the multi‑GPU training jobs, orchestrating the data splits, and ensuring reproducibility of results across Linux and Windows machines. That effort paid off when we could confidently attribute performance differences to model design rather than training variance. I also coordinated the final report and visual assets, making sure our findings were communicated crisply. With more bandwidth, I would have liked to implement continuous integration tests for model regressions and perhaps a lightweight web dashboard so non‑technical stakeholders could interactively explore the performance trade‑offs.
+
 
 ### Quantitative Analysis
 
@@ -151,7 +171,7 @@ For detecting cyclists, PointRCNN dominates SECOND and PointPillar. It has the b
 | BEV AP | **89.96%** | **87.88%** | 85.77% |
 | 3D AP	| 86.63% | 76.74% | 74.17% |
 
-Unlike the case of pedestrian and cyclist data where one model was dominant, all models perform nearly equally for car classification, with only 1-2% difference for all specificity-difficulty pairs. This may be occurring because detecting cars is much easier than detecting pedestrian or cyclists, especially for harder samples. The most difficult challenge in car detection appears to be rendering with more specificity in low visibility, as there is a large dropoff in all models when comparing 3D and 2D specificities for moderate and hard samples.
+Unlike the case of pedestrian and cyclist data where one model was dominant, all models perform nearly equally for car classification, with only a 1-2% difference for all specificity-difficulty pairs. This may be occurring because detecting cars is much easier than detecting pedestrian or cyclists, especially for harder samples. The most difficult challenge in car detection appears to be rendering with more specificity in low visibility, as there is a large dropoff in all models when comparing 3D and 2D specificities for moderate and hard samples.
 
 #### All Categories
 *Average Results for Pedestrians, Cyclists, and Cars*
@@ -235,8 +255,8 @@ Notably, all frameworks achieved comparable results for car detection, with less
 These findings underscore the importance of task-specific framework selection: PointRCNN excels in safety-critical scenarios requiring high precision, whereas SECOND and PointPillar prioritize real-time performance. Future work should explore hybrid architectures that combine point-based refinement with pillar- or voxel-based feature extraction, as well as robustness enhancements for adverse weather and occlusion. By addressing these challenges, 3D detection systems can further bridge the gap between benchmark performance and real-world reliability.
 
 ## References
-1. Shi, Shaoshuai, Xiaogang Wang, and Hongsheng Li. "Pointrcnn: 3d object proposal generation and detection from point cloud." Proceedings of the IEEE/CVF conference on computer vision and pattern recognition. 2019.
-2. Yan, Yan, Yuxing Mao, and Bo Li. "Second: Sparsely embedded convolutional detection." Sensors 18.10 (2018): 3337.
-3. Lang, Alex H., et al. "Pointpillars: Fast encoders for object detection from point clouds." Proceedings of the IEEE/CVF conference on computer vision and pattern recognition. 2019.
-4. Gao, Y., Wang, P., Li, X. et al. PillarFocusNet for 3D object detection with perceptual diffusion and key feature understanding. Sci Rep 15, 8776 (2025). https://doi.org/10.1038/s41598-025-92338-5
-5. PromptDet: Towards Open-vocabulary Detection using Uncurated Images. (n.d.). https://fcjian.github.io/promptdet/
+[1] Shi, Shaoshuai, Xiaogang Wang, and Hongsheng Li. "Pointrcnn: 3d object proposal generation and detection from point cloud." Proceedings of the IEEE/CVF conference on computer vision and pattern recognition. 2019.
+[2] Yan, Yan, Yuxing Mao, and Bo Li. "Second: Sparsely embedded convolutional detection." Sensors 18.10 (2018): 3337.
+[3] Lang, Alex H., et al. "Pointpillars: Fast encoders for object detection from point clouds." Proceedings of the IEEE/CVF conference on computer vision and pattern recognition. 2019.
+[4] Gao, Y., Wang, P., Li, X., Sun, B., Sun, M., Li, L., & Di, R. (2025). PillarFocusNet for 3D object detection with perceptual diffusion and key feature understanding. Scientific Reports, 15(1), 1-15. https://doi.org/10.1038/s41598-025-92338-5
+[5] Shi, S., Guo, C., Jiang, L., Wang, Z., Shi, J., Wang, X., & Li, H. (2019). PV-RCNN: Point-Voxel Feature Set Abstraction for 3D Object Detection. ArXiv. https://arxiv.org/abs/1912.13192
