@@ -256,6 +256,7 @@ These findings underscore the importance of task-specific framework selection: P
 
 ## References
 [1] Shi, Shaoshuai, Xiaogang Wang, and Hongsheng Li. "Pointrcnn: 3d object proposal generation and detection from point cloud." Proceedings of the IEEE/CVF conference on computer vision and pattern recognition. 2019.
+
 [2] Yan, Yan, Yuxing Mao, and Bo Li. "Second: Sparsely embedded convolutional detection." Sensors 18.10 (2018): 3337.
 [3] Lang, Alex H., et al. "Pointpillars: Fast encoders for object detection from point clouds." Proceedings of the IEEE/CVF conference on computer vision and pattern recognition. 2019.
 [4] Gao, Y., Wang, P., Li, X., Sun, B., Sun, M., Li, L., & Di, R. (2025). PillarFocusNet for 3D object detection with perceptual diffusion and key feature understanding. Scientific Reports, 15(1), 1-15. https://doi.org/10.1038/s41598-025-92338-5
